@@ -10,21 +10,48 @@ from typing import Dict, List
 
 def load_province_codes():
     """加载省份代码"""
-    try:
-        with open('scripts/china_weather_province_codes.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        # 如果文件不存在，返回空字典
-        return {}
+    import os
+    
+    # 尝试多个可能的路径
+    possible_paths = [
+        'scripts/china_weather_province_codes.json',
+        '/home/Tim/BotRoom/clawdbot-skills/scripts/china_weather_province_codes.json',
+        '/home/Tim/BotRoom/china_weather_province_codes.json',
+        './china_weather_province_codes.json'
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except FileNotFoundError:
+            continue
+    
+    # 如果文件不存在，返回空字典
+    return {}
 
 def get_city_codes_by_province(province_code: str) -> List[tuple]:
     """根据省份代码获取该省主要城市的代码"""
+    import os
+    
     # 这里我们可以从完整的城市代码列表中筛选
-    try:
-        with open('scripts/complete_china_weather_city_codes.json', 'r', encoding='utf-8') as f:
-            all_cities = json.load(f)
-    except FileNotFoundError:
-        return []
+    possible_paths = [
+        'scripts/complete_china_weather_city_codes.json',
+        '/home/Tim/BotRoom/clawdbot-skills/scripts/complete_china_weather_city_codes.json',
+        '/home/Tim/BotRoom/complete_china_weather_city_codes.json',
+        './complete_china_weather_city_codes.json'
+    ]
+    
+    all_cities = {}
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                with open(path, 'r', encoding='utf-8') as f:
+                    all_cities = json.load(f)
+                break
+        except FileNotFoundError:
+            continue
     
     province_cities = []
     for city_name, city_code in all_cities.items():
