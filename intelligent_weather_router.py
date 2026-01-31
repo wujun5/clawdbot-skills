@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-完全独立的增强版中国天气查询脚本
+智能回退版中国天气查询脚本
+当无法查询到具体城市时，自动回退到省级或附近城市
 """
 
 import requests
@@ -104,6 +105,29 @@ def find_city_code(city_name: str, city_codes: dict, province_codes: dict):
                         return code
     
     return None
+
+def get_province_from_city_code(city_code: str, province_codes: dict):
+    """从城市代码推断省份代码"""
+    if len(city_code) >= 5:
+        prov_code_prefix = city_code[:5]
+        for prov_name, prov_info in province_codes.items():
+            if prov_info['code'] == prov_code_prefix:
+                return prov_name
+    return None
+
+def find_cities_by_province(province_name: str, city_codes: dict, province_codes: dict):
+    """查找省份下的所有城市"""
+    if province_name not in province_codes:
+        return []
+    
+    prov_code = province_codes[province_name]['code']
+    province_cities = []
+    
+    for city_name, city_code in city_codes.items():
+        if city_code.startswith(prov_code):
+            province_cities.append((city_name, city_code))
+    
+    return province_cities
 
 def query_weather_com_cn_api_v2(city_code: str) -> Optional[str]:
     """
@@ -331,33 +355,96 @@ def is_china_location(location):
     
     return False
 
+def query_fallback_weather(location: str) -> str:
+    """
+    智能回退天气查询
+    当无法查询到具体城市时，自动回退到省级或附近城市
+    """
+    city_codes = load_city_codes()
+    province_codes = load_province_codes()
+    
+    # 首先尝试直接查询
+    direct_result = query_weather_com_cn(location)
+    if direct_result:
+        return direct_result
+    
+    # 如果直接查询失败，尝试wttr.in
+    wttr_result = query_wttr_in(location)
+    if wttr_result:
+        return wttr_result
+    
+    # 如果城市名查询失败，尝试提取省份信息并查询省会
+    for prov_name in province_codes:
+        if location.startswith(prov_name):
+            # 如果是省份+城市的形式，尝试查询省会
+            capital_mapping = {
+                '北京': '北京', '上海': '上海', '天津': '天津', '重庆': '重庆',
+                '河北': '石家庄', '山西': '太原', '内蒙古': '呼和浩特',
+                '辽宁': '沈阳', '吉林': '长春', '黑龙江': '哈尔滨',
+                '江苏': '南京', '浙江': '杭州', '安徽': '合肥', '福建': '福州', '江西': '南昌', '山东': '济南',
+                '河南': '郑州', '湖北': '武汉', '湖南': '长沙',
+                '广东': '广州', '广西': '南宁', '海南': '海口',
+                '四川': '成都', '贵州': '贵阳', '云南': '昆明',
+                '西藏': '拉萨', '陕西': '西安', '甘肃': '兰州', '青海': '西宁', '宁夏': '银川', '新疆': '乌鲁木齐'
+            }
+            
+            if prov_name in capital_mapping:
+                capital = capital_mapping[prov_name]
+                print(f"未找到 {location} 的具体天气，回退到查询 {prov_name} 省会 {capital}")
+                result = query_weather_com_cn(capital)
+                if result:
+                    return f"[{location} 天气暂无，显示{prov_name}省会] {result}"
+                
+                # 如果省会也查不到，尝试wttr.in
+                result = query_wttr_in(capital)
+                if result:
+                    return f"[{location} 天气暂无，显示{prov_name}省会] {capital}: {result}"
+    
+    # 如果是具体城市名但没查到，尝试查找相近的城市
+    for city_name in city_codes:
+        if location in city_name or city_name in location:
+            print(f"未找到 {location} 的具体天气，回退到查询相近城市 {city_name}")
+            result = query_weather_com_cn(city_name)
+            if result:
+                return f"[{location} 天气暂无，显示相近城市] {result}"
+    
+    # 如果以上都失败，尝试Open-Meteo
+    openmeteo_result = query_openmeteo_by_city(location)
+    if openmeteo_result:
+        return openmeteo_result
+    
+    # 最后的回退：尝试查询省份
+    for prov_name in province_codes:
+        if prov_name in location:
+            capital_mapping = {
+                '北京': '北京', '上海': '上海', '天津': '天津', '重庆': '重庆',
+                '河北': '石家庄', '山西': '太原', '内蒙古': '呼和浩特',
+                '辽宁': '沈阳', '吉林': '长春', '黑龙江': '哈尔滨',
+                '江苏': '南京', '浙江': '杭州', '安徽': '合肥', '福建': '福州', '江西': '南昌', '山东': '济南',
+                '河南': '郑州', '湖北': '武汉', '湖南': '长沙',
+                '广东': '广州', '广西': '南宁', '海南': '海口',
+                '四川': '成都', '贵州': '贵阳', '云南': '昆明',
+                '西藏': '拉萨', '陕西': '西安', '甘肃': '兰州', '青海': '西宁', '宁夏': '银川', '新疆': '乌鲁木齐'
+            }
+            
+            if prov_name in capital_mapping:
+                capital = capital_mapping[prov_name]
+                print(f"未找到 {location} 的具体天气，回退到查询 {prov_name} 省份天气")
+                result = query_wttr_in(capital)
+                if result:
+                    return f"[{location} 天气暂无，显示{prov_name}] {capital}: {result}"
+    
+    return f"无法获取 {location} 的天气信息，建议尝试查询省会城市或邻近城市"
+
 def query_china_weather(location: str) -> str:
     """
-    综合查询中国天气
+    综合查询中国天气（带智能回退）
     """
     print(f"正在查询: {location}")
     
     if is_china_location(location):
         print("检测到中国境内位置，使用中国天气服务...")
-        
-        # 首先尝试中国天气网API
-        result = query_weather_com_cn(location)
-        if result:
-            return result
-        
-        # 如果中国天气网失败，尝试wttr.in
-        result = query_wttr_in(location)
-        if result:
-            print("使用wttr.in服务")
-            return result
-        
-        # 如果wttr.in也失败，尝试Open-Meteo
-        result = query_openmeteo_by_city(location)
-        if result:
-            print("使用Open-Meteo服务")
-            return result
-        
-        return f"无法获取 {location} 的天气信息"
+        return query_fallback_weather(location)
     else:
         print("检测到境外位置，使用国际天气服务...")
         # 尝试wttr.in
@@ -376,10 +463,11 @@ def query_china_weather(location: str) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("使用方法: python standalone_enhanced_china_weather.py <城市名称>")
-        print("示例: python standalone_enhanced_china_weather.py 北京")
-        print("示例: python standalone_enhanced_china_weather.py 上海")
-        print("示例: python standalone_enhanced_china_weather.py 浙江嘉兴")
+        print("使用方法: python fallback_enhanced_china_weather.py <城市名称>")
+        print("示例: python fallback_enhanced_china_weather.py 北京")
+        print("示例: python fallback_enhanced_china_weather.py 上海")
+        print("示例: python fallback_enhanced_china_weather.py 浙江嘉兴")
+        print("示例: python fallback_enhanced_china_weather.py 某个不存在的城市")
         return
     
     location = sys.argv[1]
