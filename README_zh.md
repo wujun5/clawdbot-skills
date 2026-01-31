@@ -84,4 +84,4 @@ clawdbot-skills/
 
 ## 许可证
 
-请参阅各个技能目录中的许可证信息。
+本项目采用 MIT 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。

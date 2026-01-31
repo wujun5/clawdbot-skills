@@ -79,4 +79,4 @@ Feel free to contribute additional skills that enhance Clawdbot's functionality.
 
 ## License
 
-See individual skill directories for license information.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
