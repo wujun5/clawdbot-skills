@@ -15,6 +15,20 @@ A weather skill specifically designed for use in China, utilizing domestic weath
 - Multi-service redundancy for high availability
 - Easy integration with Clawdbot
 
+### Intelligent Weather Router
+
+An advanced weather query solution that automatically selects the most appropriate weather service based on the query location:
+
+- **China locations** → China Weather skill (QWeather, AMap, etc.)
+- **International locations** → International weather services (wttr.in, Open-Meteo, etc.)
+
+#### Features:
+- Automatic location detection
+- Smart service routing
+- Unified interface
+- Seamless experience regardless of location
+- Maintains compatibility with existing systems
+
 #### Services Supported:
 1. **QWeather (和风天气)** - Primary service (API key required)
 2. **AMap Weather (高德地图)** - Secondary service (API key required)  
