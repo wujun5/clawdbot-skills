@@ -17,13 +17,32 @@ import json
 
 # 获取脚本所在目录
 script_dir = os.path.dirname(os.path.abspath(__file__))
-city_codes_file = os.path.join(script_dir, 'complete_china_weather_city_codes.json')
 
-try:
-    with open(city_codes_file, 'r', encoding='utf-8') as f:
-        CITY_CODES = json.load(f)
-except FileNotFoundError:
-    # 如果文件不存在，使用原始的小型字典作为备用
+# 尝试多个可能的路径
+possible_paths = [
+    os.path.join(script_dir, 'complete_china_weather_city_codes.json'),
+    '/home/Tim/BotRoom/complete_china_weather_city_codes.json',
+    '/home/Tim/BotRoom/clawdbot-skills/scripts/complete_china_weather_city_codes.json',
+    '/home/Tim/BotRoom/skills_workspace/china-weather/scripts/complete_china_weather_city_codes.json',
+    './complete_china_weather_city_codes.json'
+]
+
+CITY_CODES = {}  # 默认为空字典
+loaded_from_file = False
+
+for path in possible_paths:
+    try:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                CITY_CODES = json.load(f)
+            loaded_from_file = True
+            print(f"从 {path} 加载了 {len(CITY_CODES)} 个城市代码")
+            break
+    except FileNotFoundError:
+        continue
+
+# 如果没有从文件加载成功，使用原始的小型字典作为备用
+if not loaded_from_file:
     CITY_CODES = {
         "北京": "101010100",
         "上海": "101020100",
@@ -113,6 +132,7 @@ except FileNotFoundError:
         "绥化": "101050501",
         "大兴安岭": "101050701"
     }
+    print("警告: 未能加载完整城市代码文件，使用备用字典")
 
 def query_weather_com_cn(city_name: str) -> Optional[str]:
     """
